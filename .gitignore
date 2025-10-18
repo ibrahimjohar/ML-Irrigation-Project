@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+.ipynb_checkpoints/
+data/raw/
+data/tmp/
+*.joblib
+*.parquet
+*.pickle
+*.pyc
+.DS_Store
+logs/
