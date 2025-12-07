@@ -1,0 +1,14 @@
+Month,Highest Maximum Temperature in Celsius ,Maximum Temperature date,Lowest Minimum Temperature in Celsius ,Minimum Temperature date,Monthly Heaviest Rainfall in mm,Heaviest Rainfall date
+January,32.8,16-1965,0,21-1934,89.3,1995
+February,36.5,28-2016,3,Nov-50,96,1979
+March,42.2,20-2010,7,Sep-79,130,1967
+April,44,16-1947,12.2,29-1967,52.8,1935
+May,48,Sep-38,17.7,Apr-89,33.3,1933
+June,47,18-1979,22,Mar-40,110.2,1933
+July,42.6,18-2020,22,22-1938,429.3,2007
+August,41.7,Sep-64,20,Jul-84,366.8,1967
+September,43,30-1951,18,23-1994,315.7,2020
+October,43,Jan-51,10,30-1949,98,1956
+November,38.5,Feb-94,6,29-1938,83.1,1959
+December,35.5,Mar-11,1.3,14-1986,63.6,1980
+Annual,48,9/5/1938,0,21-01-1934,745.5,1944
