@@ -1,0 +1,9 @@
+target,model,rmse,mae,r2,file
+Crop_Yield,RandomForest,7.772452937488928,0.9619880892993865,0.947165761459522,models/Crop_Yield_RandomForest.joblib
+Crop_Yield,CatBoost,7.923136555459392,1.5150305602195413,0.9461414703792127,models/Crop_Yield_CatBoost.joblib
+Crop_Yield,XGBoost,8.5500420813259,1.3293117337546712,0.9418800002407167,models/Crop_Yield_XGBoost.joblib
+Crop_Yield,LinearRegression,154.6093638509689,7.543814214089449,-0.050976837813149656,models/Crop_Yield_LinearRegression.joblib
+Irrigation_Area,CatBoost,0.05376040316587731,0.12173820402724583,0.9431498446007934,models/Irrigation_Area_CatBoost.joblib
+Irrigation_Area,RandomForest,0.057455774577139095,0.09274507987497829,0.9392420904431504,models/Irrigation_Area_RandomForest.joblib
+Irrigation_Area,XGBoost,0.058240284005941084,0.11193906875722381,0.9384124931873055,models/Irrigation_Area_XGBoost.joblib
+Irrigation_Area,LinearRegression,0.9805034611831726,0.5816247744490067,-0.03685558245782605,models/Irrigation_Area_LinearRegression.joblib
