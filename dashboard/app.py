@@ -86,7 +86,7 @@ def labeled_chart(values, title, ylabel, height=280):
             y=alt.Y(ylabel, title=ylabel),
             tooltip=[alt.Tooltip("Time Step"), alt.Tooltip(ylabel)]
         )
-        .properties(title=title, height=height)
+        .properties(title=title, height=height, padding={"left": 16, "right": 12, "top": 10, "bottom": 16})
     )
     st.altair_chart(chart, use_container_width=True)
 
@@ -103,15 +103,38 @@ def sparkline(values, color="#66c2a5", height=60, width=200):
 def mini_spark(values, color="#66c2a5", height=160):
     """Compact sparkline without axes for KPI-style cards."""
     df = pd.DataFrame({"x": list(range(len(values))), "y": values})
+    base = alt.Chart(df)
+    area = base.mark_area(opacity=0.15, color=color)
+    line = base.mark_line(color=color, strokeWidth=2)
     return (
-        alt.Chart(df)
-        .mark_area(opacity=0.35, color=color)
+        (area + line)
         .encode(
-            x=alt.X("x:Q", axis=None),
-            y=alt.Y("y:Q", axis=None),
+            x=alt.X(
+                "x:Q",
+                axis=alt.Axis(
+                    title="Years (tail)",
+                    labels=True,
+                    ticks=True,
+                    tickCount=5,
+                    labelOpacity=0.7,
+                    titleFontSize=10,
+                    labelFontSize=10,
+                ),
+            ),
+            y=alt.Y(
+                "y:Q",
+                axis=alt.Axis(
+                    title=None,
+                    labels=True,
+                    labelOpacity=0.75,
+                    labelColor="#d6d6d6",
+                    labelFontSize=10,
+                    grid=True,
+                ),
+            ),
             tooltip=[alt.Tooltip("y:Q", title="Value")]
         )
-        .properties(height=height)
+        .properties(height=height, padding={"left": 18, "right": 12, "top": 6, "bottom": 14})
     )
 
 # PDF generation helper (simple HTML -> PDF using WeasyPrint if available)
@@ -183,10 +206,18 @@ if menu == "Home":
                     y=alt.Y("Avg_Rainfall:Q", title="Avg Rainfall"),
                     tooltip=["Year", "Avg_Rainfall"]
                 )
-                .properties(height=340)
+                .properties(height=420, padding={"left": 20, "right": 14, "top": 12, "bottom": 36})
             )
             st.altair_chart(c, use_container_width=True)
             st.caption(f"Example district: {sample_d}")
+
+            # Fill vertical space with quick stats
+            st.markdown("**District summary (last 30 yrs)**")
+            tail = sample_df.tail(30)
+            st.write(
+                f"- Avg rainfall: {tail['Avg_Rainfall'].mean():.2f} | Min: {tail['Avg_Rainfall'].min():.2f} | Max: {tail['Avg_Rainfall'].max():.2f} | Δ: {tail['Avg_Rainfall'].iloc[-1] - tail['Avg_Rainfall'].iloc[0]:+.2f}\n"
+                f"- Crop yield: {tail['Crop_Yield'].mean():.2f} | Irrigation area: {tail['Irrigation_Area'].mean():.2f}"
+            )
         else:
             st.info("No district data available.")
 
@@ -198,23 +229,19 @@ if menu == "Home":
             with top_left:
                 st.markdown("**Avg Rainfall (last 30 yrs)**")
                 vals = df_codes.groupby("Year")["Avg_Rainfall"].mean().tail(30).values
-                st.altair_chart(mini_spark(vals, color="#2e8b8b"), use_container_width=True)
+                st.altair_chart(mini_spark(vals, color="#2e8b8b", height=180), use_container_width=True)
                 st.caption(f"Mean: {np.mean(vals):.2f} mm  |  Min: {np.min(vals):.2f}  |  Max: {np.max(vals):.2f}  |  Δ: {vals[-1]-vals[0]:+.2f}")
             with top_right:
                 st.markdown("**Crop Yield (last 30 yrs)**")
                 vals = df_codes.groupby("Year")["Crop_Yield"].mean().tail(30).values
-                st.altair_chart(mini_spark(vals, color="#c58b1b"), use_container_width=True)
+                st.altair_chart(mini_spark(vals, color="#c58b1b", height=180), use_container_width=True)
                 st.caption(f"Mean: {np.mean(vals):.2f}  |  Min: {np.min(vals):.2f}  |  Max: {np.max(vals):.2f}  |  Δ: {vals[-1]-vals[0]:+.2f}")
 
             st.markdown("---")
-            bottom_left, bottom_right = st.columns([1, 1])
-            with bottom_left:
-                st.markdown("**Irrigation Area (last 30 yrs)**")
-                vals = df_codes.groupby("Year")["Irrigation_Area"].mean().tail(30).values
-                st.altair_chart(mini_spark(vals, color="#b23c4f"), use_container_width=True)
-                st.caption(f"Mean: {np.mean(vals):.2f}  |  Min: {np.min(vals):.2f}  |  Max: {np.max(vals):.2f}  |  Δ: {vals[-1]-vals[0]:+.2f}")
-            with bottom_right:
-                st.empty()
+            st.markdown("**Irrigation Area (last 30 yrs)**")
+            vals = df_codes.groupby("Year")["Irrigation_Area"].mean().tail(30).values
+            st.altair_chart(mini_spark(vals, color="#b23c4f", height=240), use_container_width=True)
+            st.caption(f"Mean: {np.mean(vals):.2f}  |  Min: {np.min(vals):.2f}  |  Max: {np.max(vals):.2f}  |  Δ: {vals[-1]-vals[0]:+.2f}")
 
     st.divider()
 
