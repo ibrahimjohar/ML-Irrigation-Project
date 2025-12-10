@@ -166,15 +166,44 @@ st.markdown(
     .kpi-card { background:#0b1220; padding:12px; border-radius:10px; }
     .section-card { background:#0b1220; padding:16px; border-radius:12px; }
     .chart-card { background:#0b1220; padding:12px; border-radius:10px; }
+    /* Sidebar button tweaks */
+    .stButton > button {
+        border-radius: 10px;
+        border: 1px solid #223448;
+        background: linear-gradient(90deg, #1f2a3c, #182232);
+        color: #e6eef7;
+    }
+    .stButton > button:hover {
+        border-color: #4b9fff;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
 # -------------------------
-# SIDEBAR NAVIGATION
+# SIDEBAR NAVIGATION (button-based, no radio)
 # -------------------------
-menu = st.sidebar.radio("Navigation", ["Home", "Forecast (By Year)", "Real-time", "Custom Window", "Model Info", "About"])
+NAV_ITEMS = [
+    ("Home", "🌐 Home Dashboard"),
+    ("Forecast (By Year)", "📌 Forecast by Year"),
+    ("Real-time", "⏳ Real-time"),
+    ("Custom Window", "🧪 Custom Window"),
+    ("Model Info", "🧠 Model Info"),
+    ("About", "ℹ️ About"),
+]
+
+if "nav" not in st.session_state:
+    st.session_state.nav = "Home"
+
+st.sidebar.markdown("### Navigation")
+for nav_key, nav_label in NAV_ITEMS:
+    is_active = st.session_state.nav == nav_key
+    btn_type = "primary" if is_active else "secondary"
+    if st.sidebar.button(nav_label, key=f"nav-{nav_key}", use_container_width=True, type=btn_type):
+        st.session_state.nav = nav_key
+
+menu = st.session_state.nav
 
 # -------------------------
 # HOME DASHBOARD (cards + mini charts)
