@@ -1,4 +1,3 @@
-# dashboard/app.py
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -10,9 +9,37 @@ import io
 import base64
 from datetime import datetime
 from jinja2 import Template
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from io import BytesIO
 
 # Use the full screen width to avoid cramped charts/cards
 st.set_page_config(page_title="ML Irrigation Dashboard", page_icon="🌾", layout="wide")
+
+st.markdown("""
+<style>
+
+    /* LIMIT WIDTH OF SELECTBOX, INPUT, FILE UPLOADER */
+    div[data-baseweb="select"],
+    div[data-baseweb="input"],
+    div[data-testid="stFileUploader"] {
+        max-width: 450px !important;   /* your desired width */
+        margin-right: auto !important;
+    }
+
+    /* Limit inner file uploader drop zone */
+    div[data-testid="stFileUploaderDropzone"] {
+        max-width: 450px !important;
+    }
+
+    /* Make number input buttons not stretch */
+    div[data-baseweb="input"] input {
+        max-width: 450px !important;
+    }
+
+</style>
+""", unsafe_allow_html=True)
+
 
 # -------------------------------------------------------------------
 # HIDE SIDEBAR + TOP NAVIGATION BAR (Option A)
@@ -24,7 +51,7 @@ st.markdown(
     <style>
         section[data-testid="stSidebar"] {display:none;}
         header[data-testid="stHeader"] {visibility: hidden !important; height: 0px !important;}
-        div.block-container {padding-top: 1.5rem !important;}  /* minimal gap below navbar */
+        div.block-container {padding-top: 0.5rem !important;}  /* minimal gap below navbar */
     </style>
     """,
     unsafe_allow_html=True,
@@ -103,6 +130,13 @@ st.markdown(
     /* Theme tweaks */
     .stApp { background-color: #0f1720; color: #fff; }
     .stMetric { color: #fff; }
+    
+    .nav-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #e6eef7;
+        padding: 0px 0;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -138,19 +172,31 @@ else:
         st.session_state.nav = current_nav
 
 def render_top_nav():
-    # Use Streamlit columns to create the navbar layout - just nav items, no brand
-    nav_cols = st.columns([1] * len(NAV_ITEMS))
+    # Layout: [TITLE] [BUTTONS...]
+    cols = st.columns([2, 8])  # left = title, right = nav buttons
     
-    # Navigation buttons - use secondary for all, we'll style active with CSS
+    # LEFT SIDE — TITLE
+    with cols[0]:
+        st.markdown(
+            """
+            <div class="nav-title">ML Irrigation Dashboard</div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # RIGHT SIDE — BUTTON NAVBAR (same logic you already had)
+    nav_cols = cols[1].columns([1] * len(NAV_ITEMS))
+
     current_active = st.session_state.nav
+
     for idx, (key, label) in enumerate(NAV_ITEMS):
         with nav_cols[idx]:
             if st.button(label, key=f"nav_{key}", type="secondary", use_container_width=True):
                 st.query_params["nav"] = key
                 st.session_state.nav = key
                 st.rerun()
-    
-    # Add JavaScript to mark active button
+
+    # Inject JS to highlight the active button
     active_key_escaped = current_active.replace("'", "\\'")
     st.markdown(f"""
     <script>
@@ -297,17 +343,43 @@ def mini_spark(values, color="#66c2a5", height=160):
         .properties(height=height, padding={"left": 18, "right": 12, "top": 6, "bottom": 14})
     )
 
-# PDF generation helper (simple HTML -> PDF using WeasyPrint if available)
 def render_pdf_from_html(html_str):
+    """
+    Simple PDF generator that works on ALL platforms.
+    (Does NOT render actual HTML, but extracts text.)
+    """
     try:
-        # prefer weasyprint if installed
-        from weasyprint import HTML
-        pdf_bytes = HTML(string=html_str).write_pdf()
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pagesize=letter)
+
+        textobject = c.beginText(40, 750)
+        textobject.setFont("Helvetica", 11)
+
+        # Convert HTML to plain text (basic fallback)
+        clean_text = (
+            html_str.replace("<br>", "\n")
+            .replace("<br/>", "\n")
+            .replace("<p>", "")
+            .replace("</p>", "\n\n")
+            .replace("<h1>", "")
+            .replace("</h1>", "\n\n")
+        )
+
+        for line in clean_text.split("\n"):
+            textobject.textLine(line)
+
+        c.drawText(textobject)
+        c.showPage()
+        c.save()
+
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
         return pdf_bytes
+
     except Exception as e:
-        # fallback: return None — user must install weasyprint/wkhtmltopdf
-        st.warning("WeasyPrint not available; install it to enable PDF export.")
+        st.error(f"ReportLab PDF error: {e}")
         return None
+
 
 def csv_download_button(df, filename="export.csv", label="Download CSV"):
     csv_bytes = df.to_csv(index=False).encode("utf-8")
@@ -348,6 +420,7 @@ st.markdown(
     main .stButton > button:hover {
         border-color: #4b9fff;
     }
+    
     </style>
     """,
     unsafe_allow_html=True
