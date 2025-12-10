@@ -12,6 +12,7 @@ from jinja2 import Template
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from io import BytesIO
+from streamlit_autorefresh import st_autorefresh
 
 # Use the full screen width to avoid cramped charts/cards
 st.set_page_config(page_title="ML Irrigation Dashboard", page_icon="🌾", layout="wide")
@@ -262,6 +263,24 @@ df_codes["Year"] = df_codes["Year"].astype(int)
 
 DISTRICTS = sorted(df_codes["District"].unique())
 
+# ---------------------------------
+# ROTATING SAMPLE DISTRICT LOGIC
+# ---------------------------------
+
+# Autorefresh every 30 seconds
+count = st_autorefresh(interval=30000, key="sample_trend_refresh")
+
+# Initialize index if not set
+if "trend_index" not in st.session_state:
+    st.session_state.trend_index = 0
+
+# Advance index only when page refreshes (count > 0)
+if count > 0 and DISTRICTS:
+    st.session_state.trend_index = (st.session_state.trend_index + 1) % len(DISTRICTS)
+
+# Current dynamic district
+CURRENT_SAMPLE_DISTRICT = DISTRICTS[st.session_state.trend_index]
+
 # Mock lat/lon mapping (if you have a district-to-latlon mapping, load it)
 np.random.seed(0)
 district_coords = {}
@@ -426,6 +445,21 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+st.markdown("""
+    <style>
+    /* Smooth fade animation for the sample district trend block */
+    .fade-container {
+        animation: fadeIn 1s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        0% { opacity: 0; transform: translateY(6px); }
+        100% { opacity: 1; transform: translateY(0px); }
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
 # -------------------------
 # PAGES (same routing as original)
 # -------------------------
@@ -446,29 +480,56 @@ if menu == "Home":
     # Trends block
     trend_left, trend_right = st.columns([2.6, 2.4])
     with trend_left:
-        st.markdown("### 📈 Sample District Trend")
-        sample_d = DISTRICTS[0] if DISTRICTS else None
+        # Heading + current district (no big gap)
+        sample_d = CURRENT_SAMPLE_DISTRICT
+
+
+        st.markdown(f"""
+        <div style="margin-bottom: -10px;">
+            <h3>📈 Sample District Trend</h3>
+        </div>
+        <p style="font-size:16px; margin-top:2px;">
+            <strong>Currently showing district:</strong> 
+            <span style="background:#113; padding:3px 8px; border-radius:4px; color:#8f8;">
+                {sample_d}
+            </span>
+        </p>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+
         if sample_d:
+
             sample_df = df_codes[df_codes["District"] == sample_d].sort_values("Year")
+
             c = (
                 alt.Chart(sample_df)
                 .mark_line(point=True)
                 .encode(
                     x=alt.X("Year:O", title="Year"),
                     y=alt.Y("Avg_Rainfall:Q", title="Avg Rainfall"),
-                    tooltip=["Year", "Avg_Rainfall"]
+                    tooltip=["Year", "Avg_Rainfall"],
                 )
-                .properties(height=420, padding={"left": 20, "right": 14, "top": 12, "bottom": 36})
+                .properties(
+                    height=420,
+                    padding={"left": 20, "right": 14, "top": 12, "bottom": 36},
+                )
             )
+
             st.altair_chart(c, use_container_width=True)
+
             st.caption(f"Example district: {sample_d}")
 
-            # Fill vertical space with quick stats
+            # Summary
             st.markdown("**District summary (last 30 yrs)**")
             tail = sample_df.tail(30)
             st.write(
-                f"- Avg rainfall: {tail['Avg_Rainfall'].mean():.2f} | Min: {tail['Avg_Rainfall'].min():.2f} | Max: {tail['Avg_Rainfall'].max():.2f} | Δ: {tail['Avg_Rainfall'].iloc[-1] - tail['Avg_Rainfall'].iloc[0]:+.2f}\n"
-                f"- Crop yield: {tail['Crop_Yield'].mean():.2f} | Irrigation area: {tail['Irrigation_Area'].mean():.2f}"
+                f"- Avg rainfall: {tail['Avg_Rainfall'].mean():.2f} "
+                f"| Min: {tail['Avg_Rainfall'].min():.2f} "
+                f"| Max: {tail['Avg_Rainfall'].max():.2f} "
+                f"| Δ: {tail['Avg_Rainfall'].iloc[-1] - tail['Avg_Rainfall'].iloc[0]:+.2f}\n"
+                f"- Crop yield: {tail['Crop_Yield'].mean():.2f} "
+                f"| Irrigation area: {tail['Irrigation_Area'].mean():.2f}"
             )
         else:
             st.info("No district data available.")
