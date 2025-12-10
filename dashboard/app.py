@@ -14,6 +14,168 @@ from jinja2 import Template
 # Use the full screen width to avoid cramped charts/cards
 st.set_page_config(page_title="ML Irrigation Dashboard", page_icon="🌾", layout="wide")
 
+# -------------------------------------------------------------------
+# HIDE SIDEBAR + TOP NAVIGATION BAR (Option A)
+# -------------------------------------------------------------------
+
+# Hide sidebar completely and ensure content is pushed below header
+st.markdown(
+    """
+    <style>
+        section[data-testid="stSidebar"] {display:none;}
+        header[data-testid="stHeader"] {visibility: hidden !important; height: 0px !important;}
+        div.block-container {padding-top: 1.5rem !important;}  /* minimal gap below navbar */
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Single global CSS for navbar and theme
+st.markdown(
+    """
+    <style>
+    /* NAVBAR - Style Streamlit buttons to look like nav items */
+    div[data-testid="stHorizontalBlock"]:has(button[data-testid*="nav_"]) {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 50px !important;
+        background-color: #0b1220 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 20px !important;
+        border-bottom: 1px solid #1f2b3a !important;
+        z-index: 999999 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        gap: 8px !important;
+    }
+    
+    /* Nav button styling - clean and minimal - override ALL Streamlit defaults */
+    button[data-testid*="nav_"],
+    button[data-testid*="nav_"][kind="secondary"] {
+        background: transparent !important;
+        border: none !important;
+        color: #e6eef7 !important;
+        font-size: 14px !important;
+        padding: 8px 16px !important;
+        border-radius: 6px !important;
+        font-weight: normal !important;
+        box-shadow: none !important;
+        height: auto !important;
+        width: auto !important;
+        min-width: auto !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        border-color: transparent !important;
+    }
+    
+    button[data-testid*="nav_"]:hover {
+        background-color: #202d42 !important;
+        border-color: transparent !important;
+        color: #e6eef7 !important;
+    }
+    
+    /* Active state styling - applied via JavaScript class */
+    button[data-testid*="nav_"].nav-active {
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+        font-weight: 500 !important;
+        color: #fff !important;
+    }
+    
+    button[data-testid*="nav_"].nav-active:hover {
+        background: rgba(255, 255, 255, 0.12) !important;
+        border-color: rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    /* Column styling - ensure buttons are properly spaced */
+    div[data-testid="stHorizontalBlock"]:has(button[data-testid*="nav_"]) > div {
+        padding: 0 4px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Theme tweaks */
+    .stApp { background-color: #0f1720; color: #fff; }
+    .stMetric { color: #fff; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Define nav items (no emojis)
+NAV_ITEMS = [
+    ("Home", "Home"),
+    ("Forecast (By Year)", "Forecast"),
+    ("Real-time", "Real-time"),
+    ("Custom Window", "Custom Window"),
+    ("Model Info", "Model Info"),
+    ("About", "About"),
+]
+
+# Initialize navigation state
+if "nav" not in st.session_state:
+    # Check query params first
+    params = st.query_params
+    current_nav = params.get("nav", "Home")
+    if isinstance(current_nav, list):
+        current_nav = current_nav[0]
+    if current_nav not in [k for k, _ in NAV_ITEMS]:
+        current_nav = "Home"
+    st.session_state.nav = current_nav
+else:
+    # Update from query params if they changed
+    params = st.query_params
+    current_nav = params.get("nav", st.session_state.nav)
+    if isinstance(current_nav, list):
+        current_nav = current_nav[0]
+    if current_nav in [k for k, _ in NAV_ITEMS] and current_nav != st.session_state.nav:
+        st.session_state.nav = current_nav
+
+def render_top_nav():
+    # Use Streamlit columns to create the navbar layout - just nav items, no brand
+    nav_cols = st.columns([1] * len(NAV_ITEMS))
+    
+    # Navigation buttons - use secondary for all, we'll style active with CSS
+    current_active = st.session_state.nav
+    for idx, (key, label) in enumerate(NAV_ITEMS):
+        with nav_cols[idx]:
+            if st.button(label, key=f"nav_{key}", type="secondary", use_container_width=True):
+                st.query_params["nav"] = key
+                st.session_state.nav = key
+                st.rerun()
+    
+    # Add JavaScript to mark active button
+    active_key_escaped = current_active.replace("'", "\\'")
+    st.markdown(f"""
+    <script>
+    (function() {{
+        const activeKey = '{active_key_escaped}';
+        const buttons = document.querySelectorAll('button[data-testid*="nav_"]');
+        buttons.forEach(function(btn) {{
+            const testId = btn.getAttribute('data-testid') || '';
+            if (testId.includes('nav_' + activeKey)) {{
+                btn.classList.add('nav-active');
+            }} else {{
+                btn.classList.remove('nav-active');
+            }}
+        }});
+    }})();
+    </script>
+    """, unsafe_allow_html=True)
+    
+
+
+# Render navbar
+render_top_nav()
+
+menu = st.session_state.nav
+
 # -------------------------
 # CONFIG / PATHS / API
 # -------------------------
@@ -39,16 +201,15 @@ for p in DATA_PATHS:
             df_codes.columns = df_codes.columns.str.strip()
             break
         except Exception as e:
-            st.sidebar.error(f"Failed to read dataset at {p}: {e}")
+            st.error(f"Failed to read dataset at {p}: {e}")
 
 if df_codes is None:
-    st.sidebar.error("Dataset not found. Put final_cleaned_district_dataset.csv in ../data or /app/data")
+    st.error("Dataset not found. Put final_cleaned_district_dataset.csv in ../data or /app/data")
     st.stop()
 
 # -------------------------
 # PREP DATA
 # -------------------------
-# minimal cleaning
 if "Year" not in df_codes.columns and "year" in df_codes.columns:
     df_codes["Year"] = df_codes["year"].astype(int)
 df_codes["Year"] = df_codes["Year"].astype(int)
@@ -56,7 +217,6 @@ df_codes["Year"] = df_codes["Year"].astype(int)
 DISTRICTS = sorted(df_codes["District"].unique())
 
 # Mock lat/lon mapping (if you have a district-to-latlon mapping, load it)
-# For demo: create small random coords — replace with real geometry for production
 np.random.seed(0)
 district_coords = {}
 for i, d in enumerate(DISTRICTS):
@@ -156,7 +316,7 @@ def csv_download_button(df, filename="export.csv", label="Download CSV"):
     st.markdown(href, unsafe_allow_html=True)
 
 # -------------------------
-# THEME CSS (optional tweaks)
+# THEME CSS (preserve original tweaks)
 # -------------------------
 st.markdown(
     """
@@ -166,14 +326,26 @@ st.markdown(
     .kpi-card { background:#0b1220; padding:12px; border-radius:10px; }
     .section-card { background:#0b1220; padding:16px; border-radius:12px; }
     .chart-card { background:#0b1220; padding:12px; border-radius:10px; }
-    /* Sidebar button tweaks */
-    .stButton > button {
-        border-radius: 10px;
-        border: 1px solid #223448;
-        background: linear-gradient(90deg, #1f2a3c, #182232);
+    /* Sidebar buttons (hidden but styles preserved if needed later) */
+    section[data-testid="stSidebar"] .stButton > button {
+        border-radius: 50%;
+        height: 56px;
+        width: 56px;
+        padding: 0;
+        background: #1a2333;
         color: #e6eef7;
+        border: 1px solid #243347;
+        font-size: 20px;
     }
-    .stButton > button:hover {
+    /* Main-area buttons reset so page controls stay normal */
+    main .stButton > button {
+        border-radius: 6px;
+        background: #273143;
+        color: #e6eef7;
+        border: 1px solid #3a465a;
+        padding: 8px 16px;
+    }
+    main .stButton > button:hover {
         border-color: #4b9fff;
     }
     </style>
@@ -182,32 +354,10 @@ st.markdown(
 )
 
 # -------------------------
-# SIDEBAR NAVIGATION (button-based, no radio)
+# PAGES (same routing as original)
 # -------------------------
-NAV_ITEMS = [
-    ("Home", "🌐 Home Dashboard"),
-    ("Forecast (By Year)", "📌 Forecast by Year"),
-    ("Real-time", "⏳ Real-time"),
-    ("Custom Window", "🧪 Custom Window"),
-    ("Model Info", "🧠 Model Info"),
-    ("About", "ℹ️ About"),
-]
 
-if "nav" not in st.session_state:
-    st.session_state.nav = "Home"
-
-st.sidebar.markdown("### Navigation")
-for nav_key, nav_label in NAV_ITEMS:
-    is_active = st.session_state.nav == nav_key
-    btn_type = "primary" if is_active else "secondary"
-    if st.sidebar.button(nav_label, key=f"nav-{nav_key}", use_container_width=True, type=btn_type):
-        st.session_state.nav = nav_key
-
-menu = st.session_state.nav
-
-# -------------------------
-# HOME DASHBOARD (cards + mini charts)
-# -------------------------
+# HOME
 if menu == "Home":
     st.header("🌾 ML Irrigation — Home Dashboard")
 
@@ -252,7 +402,7 @@ if menu == "Home":
 
     with trend_right:
         st.markdown("### Key Trends")
-        kt_container = st.container(border=True)
+        kt_container = st.container()
         with kt_container:
             top_left, top_right = st.columns(2)
             with top_left:
@@ -302,7 +452,7 @@ if menu == "Home":
 
     with mcol2:
         st.markdown("### 📊 Distributions")
-        dist_container = st.container(border=True)
+        dist_container = st.container()
         with dist_container:
             st.caption("Crop Yield")
             st.altair_chart(
@@ -415,13 +565,18 @@ elif menu == "Custom Window":
         st.write(user_df.head())
         if st.button("Run custom forecast"):
             payload = {"district": None, "year": None, "window": user_df.values.tolist()}
-            res = requests.post(API_WINDOW, json=payload).json()
+            try:
+                res = requests.post(API_WINDOW, json=payload, timeout=20).json()
+            except Exception as e:
+                st.error(f"API error: {e}")
+                res = {"error": str(e)}
             if res.get("detail") or res.get("error"):
                 st.error(res.get("detail") or res.get("error"))
             else:
                 st.metric("Next 1h", f"{res['forecast_24h'][0]:.2f} mm")
                 labeled_chart(res['forecast_24h'], "Next 24h (custom)", "Rainfall (mm)")
-                labeled_chart(res['forecast_7d'], "Next 7d (custom)", "Rainfall (mm)")
+                if "forecast_7d" in res:
+                    labeled_chart(res['forecast_7d'], "Next 7d (custom)", "Rainfall (mm)")
 
 # -------------------------
 # MODEL INFO
@@ -433,7 +588,6 @@ elif menu == "Model Info":
     st.markdown("- Irrigation model: CatBoost (saved joblib)")
     st.markdown("You can extend this section to show model metrics, training plots, hyperparams, and feature importances.")
     if st.button("Show feature importances (sample)"):
-        # sample: read a saved CSV of feature importances if available
         st.info("Add code to fetch real feature importances from saved artifacts.")
 
 # -------------------------
@@ -441,9 +595,11 @@ elif menu == "Model Info":
 # -------------------------
 elif menu == "About":
     st.header("ℹ️ About This Project")
-    st.write("""
-    This dashboard visualizes rainfall, crop yield and irrigation area forecasts.
-    - API endpoints: /predict, /predict_now, /predict_with_window
-    - Built with Streamlit, FastAPI back-end and multivariate LSTM + tree-based models.
-    """)
+    st.write(
+        """
+        This dashboard visualizes rainfall, crop yield and irrigation area forecasts.
+        - API endpoints: /predict, /predict_now, /predict_with_window
+        - Built with Streamlit, FastAPI back-end and multivariate LSTM + tree-based models.
+        """
+    )
     st.write("Made by: You. Hostable in Docker.")
