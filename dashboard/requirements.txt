@@ -1,0 +1,10 @@
+streamlit
+pandas
+numpy
+requests
+altair
+pydeck
+pdfkit
+jinja2
+weasyprint    # optional alternative to wkhtmltopdf/pdfkit
+pyarrow       # optional for faster CSV
